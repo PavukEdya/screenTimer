@@ -1,23 +1,46 @@
 import datetime
-import time
-import json
 import pygetwindow
+from sessions import Session
 
 
 class Window:
     def __init__(self, fullname):
         self.name_preparer = WindowNamePreparer()
         self._sessions = []
-        self.fullname = fullname
-        self.name = self.name_preparer.name(fullname)
+        self._fullname = fullname
+        self._name = self.name_preparer.name(fullname)
         self._current_session = None
-        self.is_active = False
+        self._active = False
+
+    @property
+    def fullname(self):
+        return self._fullname
+
+    @fullname.setter
+    def fullname(self, w_fullname):
+        self._fullname = w_fullname
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, w_name):
+        self._name = w_name
+
+    @property
+    def sessions(self):
+        return self._sessions
 
     @property
     def current_active_time(self):
         if self._current_session:
             return self._current_session.active_time
         return 0
+
+    @property
+    def active(self):
+        return self._active
 
     @property
     def work_time(self):
@@ -27,80 +50,48 @@ class Window:
         return work_time
 
     def activate(self):
-        self.is_active = True
+        self._active = True
         self._current_session = Session()
         self._current_session.start()
         self._sessions.append(self._current_session)
 
     def deactivate(self):
-        self.is_active = False
+        self._active = False
         self._current_session.stop()
         self._current_session = None
 
 
-class Session:
-    def __init__(self):
-        self.is_active = False
-        self.stop_time = None
-        self.start_time = None
-
-    @property
-    def active_time(self):
-        if self.stop_time:
-            return self.stop_time - self.start_time
-        return int(time.time()) - self.start_time
-
-    def start(self):
-        if self.stop_time is not None:
-            raise self.SessionStartException()
-        if self.start_time is None:
-            self.start_time = int(time.time())
-        self.is_active = True
-
-    def stop(self):
-        if self.start_time is None:
-            raise self.SessionStopException()
-        self.stop_time = int(time.time())
-        self.is_active = False
-
-    class SessionStartException(Exception):
-        def __init__(self):
-            self.message = 'You cannot start a session that has already stopped'
-
-        def __str__(self):
-            return self.message
-
-    class SessionStopException(Exception):
-        def __init__(self):
-            self.message = 'You cannot stop a session that has not started'
-
-        def __str__(self):
-            return self.message
-
-
 class WindowsManager:
     def __init__(self):
-        self.windows = {}
+        self.current_day = datetime.date.today()
+        self._windows = {}
         self._current_window = None
 
     @property
-    def current_window(self):
+    def current_window_fullname(self):
         if self._current_window:
-            return self._current_window.name
+            return self._current_window.fullname
         return None
 
-    def activate_window(self, title):
-        if title != self.current_window:
-            if self._current_window:
+    @property
+    def windows(self):
+        return list(self._windows.values())
+
+    def window_manage(self, w_fullname):
+        if w_fullname != self.current_window_fullname:
+            if self._current_window is not None:
                 self._current_window.deactivate()
-            if title in self.windows:
-                self._current_window = self.windows[title]
+            if w_fullname in self._windows:
+                self._current_window = self._windows[w_fullname]
                 self._current_window.activate()
             else:
-                new_window = Window(title)
-                new_window.activate()
-                self.windows[title] = new_window
-                self._current_window = new_window
+                self._activate_new_window(w_fullname)
+
+    def _activate_new_window(self, title):
+        new_window = Window(title)
+        new_window.activate()
+        self._windows[title] = new_window
+        self._current_window = new_window
 
 
 class WindowChecker:
@@ -110,7 +101,7 @@ class WindowChecker:
 
 
 class WindowNamePreparer:
-    def __init__(self, input_separator='–', output_separator=''):
+    def __init__(self, input_separator='-', output_separator='-'):
         self.input_separator = input_separator
         self.output_separator = output_separator
 
@@ -128,11 +119,9 @@ class WindowNamePreparer:
 
     def _create_window_name_linked_list(self, name: str):
         names = [n.strip() for n in name.split(self.input_separator)]
-        root = WindowName(names[-1])  # Создаем корневой элемент списка
+        root = WindowName(names[-1])
         current = root
-        # Проходим по элементам массива, начиная с предпоследнего
         for i in range(len(names) - 2, -1, -1):
-            # Создаем элемент списка и связываем его с текущим элементом
             current.child = WindowName(names[i])
             current = current.child
         return root
