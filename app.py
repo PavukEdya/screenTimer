@@ -4,14 +4,8 @@ import os
 
 from windows import WindowsManager, WindowChecker
 from service import WindowService
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-engine = create_engine('sqlite:///database.db')
-Session = sessionmaker(bind=engine)
-session = Session()
 
 
 class ScreenTimer:
@@ -40,10 +34,3 @@ atexit.register(app.on_terminate)
 
 if __name__ == '__main__':
     app.run()
-
-
-
-
-
-
-
